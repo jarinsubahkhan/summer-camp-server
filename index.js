@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster01.fjx0jhm.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -48,6 +48,13 @@ app.post('/selected', async(req, res) => {
     const result = await selectedCollection.insertOne(select);
     res.send(result);
 
+});
+
+app.delete('/selected/:id', async(req,res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)};
+    const result = await selectedCollection.deleteOne(query);
+    res.send(result);
 })
 
 
