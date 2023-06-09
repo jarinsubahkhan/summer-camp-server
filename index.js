@@ -26,10 +26,28 @@ async function run() {
     await client.connect();
 
 const classesCollection = client.db("schoolDb").collection("classes");
+const selectedCollection = client.db("schoolDb").collection("selected");
 
 app.get('/classes', async(req, res) => {
     const result = await classesCollection.find().toArray();
     res.send(result);
+})
+
+app.get('/selected', async(req, res) => {
+    const email = req.query.email;
+    if(!email){
+        res.send([]);
+    }
+    const query = { email: email };
+    const result = await selectedCollection.find(query).toArray();
+    res.send(result);
+});
+
+app.post('/selected', async(req, res) => {
+    const select = req.body;
+    const result = await selectedCollection.insertOne(select);
+    res.send(result);
+
 })
 
 
