@@ -2,7 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const app = express();
-require('dotenv').config()
+require('dotenv').config();
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -45,6 +46,7 @@ async function run() {
 const usersCollection = client.db("schoolDb").collection("users");
 const classesCollection = client.db("schoolDb").collection("classes");
 const selectedCollection = client.db("schoolDb").collection("selected");
+const paymentCollection = client.db("schoolDb").collection("payment");
 
 
 app.post('/jwt', (req, res) => {
@@ -55,33 +57,33 @@ app.post('/jwt', (req, res) => {
 
 
 
-// const verifyAdmin = async (req, res, next) => {
-// const email = req.decoded.email;
-// const query = { email: email }
-// const user = await usersCollection.findOne(query);
-// if(user?.role !== 'admin') {
-//     return res.status(403).send({error:true, message: 'forbidden message' });
+const verifyAdmin = async (req, res, next) => {
+const email = req.decoded.email;
+const query = { email: email }
+const user = await usersCollection.findOne(query);
+if(user?.role !== 'admin') {
+    return res.status(403).send({error:true, message: 'forbidden message' });
 
-// }
-// next();
-// }
-
-
-
-// const verifyInstructor = async (req, res, next) => {
-// const email = req.decoded.email;
-// const query = { email: email }
-// const user = await usersCollection.findOne(query);
-// if(user?.role !== 'instructor') {
-//     return res.status(403).send({error:true, message: 'forbidden message' });
-
-// }
-// next();
-// }
+}
+next();
+}
 
 
 
-app.get('/users',verifyJWT, async (req, res) => {
+const verifyInstructor = async (req, res, next) => {
+const email = req.decoded.email;
+const query = { email: email }
+const user = await usersCollection.findOne(query);
+if(user?.role !== 'instructor') {
+    return res.status(403).send({error:true, message: 'forbidden message' });
+
+}
+next();
+}
+
+
+
+app.get('/users',verifyJWT,verifyAdmin, async (req, res) => {
     const result = await usersCollection.find().toArray();
     res.send(result);
 })
@@ -151,6 +153,12 @@ app.get('/classes', async(req, res) => {
     res.send(result);
 })
 
+app.post('/classes', async(req, res) => {
+    const classItem = req.body;
+    const result = await classesCollection.insertOne(classItem)
+    res.send(result);
+})
+
 app.get('/selected', verifyJWT, async(req, res) => {
     const email = req.query.email;
     if(!email){
@@ -181,6 +189,28 @@ app.delete('/selected/:id', async(req,res) => {
     res.send(result);
 });
 
+app.post('/create-payment-intent', async(req, res) => {
+    const {price} = req.body;
+   
+    const amount = (price * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+        currency: 'usd',
+        amount: amount,
+        "payment_method_types": ['card'] 
+    });
+    res.send({
+        clientSecret: paymentIntent.client_secret 
+    })
+})
+
+app.post('/payment',verifyJWT, async(req, res) => {
+const payment = req.body;
+const insertResult = await paymentCollection.insertOne(payment)
+
+const query = {_id: {$in: payment.selectedClass.map(id => new ObjectId(id))}}
+const deleteResult = await selectedCollection.deleteMany(query)
+res.send({insertResult, deleteResult})
+})
 
 
     // Send a ping to confirm a successful connection
