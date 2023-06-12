@@ -159,7 +159,7 @@ app.post('/classes', async(req, res) => {
     res.send(result);
 })
 
-app.get('/selected', verifyJWT, async(req, res) => {
+app.get('/selected', async(req, res) => {
     const email = req.query.email;
     if(!email){
         res.send([]);
